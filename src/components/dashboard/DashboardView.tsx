@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 
 const kpis = [
   {
-    title: "Sales Today",
+    title: "Ventas de hoy",
     value: "$4,280",
     trend: "+12%",
     trendUp: true,
@@ -26,7 +26,7 @@ const kpis = [
     color: "from-[hsl(187,72%,38%)] to-[hsl(168,70%,40%)]",
   },
   {
-    title: "Monthly Revenue",
+    title: "Ingresos mensuales",
     value: "$68,450",
     trend: "+5.2%",
     trendUp: true,
@@ -34,7 +34,7 @@ const kpis = [
     color: "from-[hsl(152,60%,45%)] to-[hsl(152,60%,35%)]",
   },
   {
-    title: "Appointments Today",
+    title: "Citas de hoy",
     value: "12",
     trend: "+3",
     trendUp: true,
@@ -42,7 +42,7 @@ const kpis = [
     color: "from-[hsl(199,89%,48%)] to-[hsl(210,80%,50%)]",
   },
   {
-    title: "Pending Orders",
+    title: "Pedidos pendientes",
     value: "8",
     trend: "-2",
     trendUp: false,
@@ -52,34 +52,34 @@ const kpis = [
 ];
 
 const quickActions = [
-  { label: "New Sale", icon: ShoppingCart, color: "text-primary" },
-  { label: "New Quote", icon: FileText, color: "text-info" },
-  { label: "New Order", icon: ClipboardList, color: "text-warning" },
-  { label: "Schedule Appt.", icon: CalendarPlus, color: "text-success" },
-  { label: "New Patient", icon: UserPlus, color: "text-primary" },
-  { label: "Eye Exam", icon: Eye, color: "text-[hsl(270,60%,55%)]" },
+  { label: "Nueva venta", icon: ShoppingCart, color: "text-primary" },
+  { label: "Cotización", icon: FileText, color: "text-info" },
+  { label: "Nuevo pedido", icon: ClipboardList, color: "text-warning" },
+  { label: "Agendar cita", icon: CalendarPlus, color: "text-success" },
+  { label: "Nuevo paciente", icon: UserPlus, color: "text-primary" },
+  { label: "Examen vista", icon: Eye, color: "text-[hsl(270,60%,55%)]" },
 ];
 
 const activities = [
-  { text: "Sale to John Doe", amount: "$2,500", time: "10 min ago" },
-  { text: "New patient: Maria García", amount: "", time: "25 min ago" },
-  { text: "Order #1042 delivered", amount: "$890", time: "1 hr ago" },
-  { text: "Eye exam: Robert Smith", amount: "$150", time: "2 hrs ago" },
-  { text: "Sale to Emily Chen", amount: "$1,200", time: "3 hrs ago" },
+  { text: "Venta a Juan Pérez", amount: "$2,500", time: "hace 10 min" },
+  { text: "Nuevo paciente: Maria García", amount: "", time: "hace 25 min" },
+  { text: "Pedido #1042 entregado", amount: "$890", time: "hace 1 hr" },
+  { text: "Examen visual: Robert Smith", amount: "$150", time: "hace 2 hrs" },
+  { text: "Venta a Emily Chen", amount: "$1,200", time: "hace 3 hrs" },
 ];
 
 const alerts = [
-  { text: "Low stock on Ray-Ban RB5154", type: "warning" as const },
-  { text: "3 delayed deliveries", type: "destructive" as const },
-  { text: "Lab order #987 ready for pickup", type: "success" as const },
-  { text: "Insurance claim pending review", type: "warning" as const },
+  { text: "Stock bajo en Ray-Ban RB5154", type: "warning" as const },
+  { text: "3 entregas retrasadas", type: "destructive" as const },
+  { text: "Pedido #987 listo para entrega", type: "success" as const },
+  { text: "Reclamo de seguro pendiente", type: "warning" as const },
 ];
 
 const DashboardView = () => {
   const now = new Date();
   const greeting =
-    now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
-  const dateStr = now.toLocaleDateString("en-US", {
+    now.getHours() < 12 ? "¡Buenos días" : now.getHours() < 18 ? "¡Buenas tardes" : "¡Buenas noches";
+  const dateStr = now.toLocaleDateString("es-ES", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -93,7 +93,7 @@ const DashboardView = () => {
         <h1 className="text-xl md:text-2xl font-bold text-foreground">
           {greeting}! ☀️
         </h1>
-        <p className="text-muted-foreground mt-1">Summary of your clinic today</p>
+        <p className="text-muted-foreground mt-1">Resumen de tu clínica hoy</p>
         <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
       </div>
 
@@ -118,7 +118,7 @@ const DashboardView = () => {
                 <span className={`text-xs font-semibold ${kpi.trendUp ? "text-success" : "text-destructive"}`}>
                   {kpi.trend}
                 </span>
-                <span className="text-xs text-muted-foreground">vs last month</span>
+                <span className="text-xs text-muted-foreground">vs mes anterior</span>
               </div>
             </CardContent>
           </Card>
@@ -127,7 +127,7 @@ const DashboardView = () => {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-lg font-semibold text-foreground mb-3">Quick Actions</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Acciones Rápidas</h2>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           {quickActions.map((action) => (
             <button
@@ -150,7 +150,7 @@ const DashboardView = () => {
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" />
-              Activity History
+              Historial de Actividad
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -176,7 +176,7 @@ const DashboardView = () => {
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-warning" />
-              Smart Alerts
+              Alertas Inteligentes
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -198,7 +198,7 @@ const DashboardView = () => {
                     alert.type === "warning" ? "bg-warning/15 text-warning border-0" : ""
                   } ${alert.type === "success" ? "bg-success/15 text-success border-0" : ""}`}
                 >
-                  {alert.type === "warning" ? "Warning" : alert.type === "destructive" ? "Urgent" : "Info"}
+                  {alert.type === "warning" ? "Advertencia" : alert.type === "destructive" ? "Urgente" : "Info"}
                 </Badge>
               </div>
             ))}

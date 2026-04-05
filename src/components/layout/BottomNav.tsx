@@ -6,10 +6,10 @@ interface BottomNavProps {
 }
 
 const items = [
-  { id: "dashboard", label: "Home", icon: LayoutDashboard },
-  { id: "pos", label: "POS", icon: ShoppingCart },
-  { id: "patients", label: "Patients", icon: Users },
-  { id: "settings", label: "Menu", icon: MoreHorizontal },
+  { id: "dashboard", label: "Inicio", icon: LayoutDashboard },
+  { id: "pos", label: "Ventas", icon: ShoppingCart },
+  { id: "patients", label: "Pacientes", icon: Users },
+  { id: "settings", label: "Menú", icon: MoreHorizontal },
 ];
 
 const BottomNav = ({ activeView, onNavigate }: BottomNavProps) => {

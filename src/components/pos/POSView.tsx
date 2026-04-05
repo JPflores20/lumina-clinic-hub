@@ -26,15 +26,15 @@ interface CartItem extends Product {
 }
 
 const catalog: Product[] = [
-  { id: 1, name: "Ray-Ban RB5154", category: "Frame", price: 189, stock: 12 },
-  { id: 2, name: "Oakley Holbrook", category: "Frame", price: 156, stock: 8 },
-  { id: 3, name: "Essilor Crizal", category: "Lens", price: 220, stock: 34 },
-  { id: 4, name: "Gucci GG0061S", category: "Frame", price: 340, stock: 5 },
-  { id: 5, name: "Zeiss Digital Lens", category: "Lens", price: 280, stock: 18 },
-  { id: 6, name: "Tom Ford FT5401", category: "Frame", price: 295, stock: 3 },
-  { id: 7, name: "Hoya Blue Control", category: "Lens", price: 175, stock: 25 },
-  { id: 8, name: "Prada VPR 08T", category: "Frame", price: 265, stock: 7 },
-  { id: 9, name: "Varilux X Series", category: "Lens", price: 420, stock: 10 },
+  { id: 1, name: "Ray-Ban RB5154", category: "Armazón", price: 189, stock: 12 },
+  { id: 2, name: "Oakley Holbrook", category: "Armazón", price: 156, stock: 8 },
+  { id: 3, name: "Essilor Crizal", category: "Mica", price: 220, stock: 34 },
+  { id: 4, name: "Gucci GG0061S", category: "Armazón", price: 340, stock: 5 },
+  { id: 5, name: "Zeiss Digital Lens", category: "Mica", price: 280, stock: 18 },
+  { id: 6, name: "Tom Ford FT5401", category: "Armazón", price: 295, stock: 3 },
+  { id: 7, name: "Hoya Blue Control", category: "Mica", price: 175, stock: 25 },
+  { id: 8, name: "Prada VPR 08T", category: "Armazón", price: 265, stock: 7 },
+  { id: 9, name: "Varilux X Series", category: "Mica", price: 420, stock: 10 },
 ];
 
 const POSView = () => {
@@ -83,7 +83,7 @@ const POSView = () => {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search frames, lenses..."
+            placeholder="Buscar armazones, micas..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-11 rounded-xl bg-card border-border"
@@ -114,7 +114,7 @@ const POSView = () => {
                           : "border-success/30 text-success"
                       }`}
                     >
-                      {product.stock} in stock
+                      {product.stock} en stock
                     </Badge>
                   </div>
                   <h3 className="font-semibold text-foreground text-sm mt-3">
@@ -136,10 +136,10 @@ const POSView = () => {
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <ShoppingBag className="w-4 h-4 text-primary" />
-              Shopping Cart
+              Carrito de Compras
               {cart.length > 0 && (
                 <Badge variant="secondary" className="ml-auto">
-                  {cart.reduce((s, c) => s + c.quantity, 0)} items
+                  {cart.reduce((s, c) => s + c.quantity, 0)} arts.
                 </Badge>
               )}
             </CardTitle>
@@ -147,7 +147,7 @@ const POSView = () => {
           <CardContent className="space-y-4">
             {cart.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                Click a product to add it
+                Haz clic en un producto para agregarlo
               </p>
             ) : (
               <>
@@ -157,7 +157,7 @@ const POSView = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">{item.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          ${item.price.toFixed(2)} each
+                          ${item.price.toFixed(2)} c/u
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
@@ -197,7 +197,7 @@ const POSView = () => {
                     <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax (16%)</span>
+                    <span className="text-muted-foreground">Impuesto (16%)</span>
                     <span className="font-medium text-foreground">${tax.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-2 border-t border-border">
@@ -219,7 +219,7 @@ const POSView = () => {
                     }`}
                   >
                     <Banknote className="w-4 h-4" />
-                    Cash
+                    Efectivo
                   </button>
                   <button
                     onClick={() => setPaymentMethod("card")}
@@ -230,13 +230,13 @@ const POSView = () => {
                     }`}
                   >
                     <CreditCard className="w-4 h-4" />
-                    Card
+                    Tarjeta
                   </button>
                 </div>
 
                 {/* Charge Button */}
                 <Button className="w-full h-12 rounded-xl text-base font-bold bg-success hover:bg-success/90 text-success-foreground">
-                  Charge ${total.toFixed(2)}
+                  Cobrar ${total.toFixed(2)}
                 </Button>
               </>
             )}

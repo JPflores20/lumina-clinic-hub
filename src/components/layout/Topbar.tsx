@@ -19,7 +19,7 @@ const Topbar = ({ onMobileMenuToggle }: TopbarProps) => {
       <div className="flex-1 max-w-md relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search patients, products, orders..."
+          placeholder="Buscar pacientes, productos, pedidos..."
           className="pl-10 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary h-9 rounded-lg"
         />
       </div>
@@ -42,7 +42,7 @@ const Topbar = ({ onMobileMenuToggle }: TopbarProps) => {
           </Avatar>
           <div className="hidden sm:block">
             <p className="text-sm font-semibold leading-none">Admin</p>
-            <p className="text-xs text-muted-foreground">Manager</p>
+            <p className="text-xs text-muted-foreground">Gerente</p>
           </div>
         </div>
       </div>

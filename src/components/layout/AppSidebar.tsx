@@ -17,13 +17,13 @@ interface AppSidebarProps {
 }
 
 const menuItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "pos", label: "POS Sales", icon: ShoppingCart },
-  { id: "patients", label: "Patients", icon: Users },
-  { id: "eye-exam", label: "Eye Exam", icon: Eye },
-  { id: "inventory", label: "Inventory", icon: Package },
-  { id: "orders", label: "Orders", icon: ClipboardList },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "dashboard", label: "Tablero", icon: LayoutDashboard },
+  { id: "pos", label: "Ventas POS", icon: ShoppingCart },
+  { id: "patients", label: "Pacientes", icon: Users },
+  { id: "eye-exam", label: "Examen Visual", icon: Eye },
+  { id: "inventory", label: "Inventario", icon: Package },
+  { id: "orders", label: "Pedidos", icon: ClipboardList },
+  { id: "settings", label: "Configuración", icon: Settings },
 ];
 
 const AppSidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse }: AppSidebarProps) => {
