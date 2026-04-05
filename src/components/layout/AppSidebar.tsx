@@ -7,7 +7,11 @@ import {
   ClipboardList,
   Settings,
   ChevronLeft,
+  ShieldAlert,
+  LogOut,
+  FileText
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AppSidebarProps {
   activeView: string;
@@ -23,10 +27,18 @@ const menuItems = [
   { id: "eye-exam", label: "Examen Visual", icon: Eye },
   { id: "inventory", label: "Inventario", icon: Package },
   { id: "orders", label: "Pedidos", icon: ClipboardList },
+  { id: "quotations", label: "Cotización", icon: FileText },
   { id: "settings", label: "Configuración", icon: Settings },
 ];
 
 const AppSidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse }: AppSidebarProps) => {
+  const { isAdmin, logout } = useAuth();
+  
+  // Condicionalmente agreamos la opción de Admin
+  const visibleMenuItems = isAdmin 
+    ? [...menuItems, { id: "admin", label: "Administración", icon: ShieldAlert }]
+    : menuItems;
+
   return (
     <aside
       className={`hidden md:flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 h-screen sticky top-0 ${
@@ -45,7 +57,7 @@ const AppSidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse }: App
 
       {/* Navigation */}
       <nav className="flex-1 py-4 space-y-1 px-2">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const isActive = activeView === item.id;
           return (
             <button
@@ -64,13 +76,23 @@ const AppSidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse }: App
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={onToggleCollapse}
-        className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground hover:text-white transition-colors"
-      >
-        <ChevronLeft className={`w-5 h-5 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} />
-      </button>
+      {/* Logout & Collapse */}
+      <div className="mt-auto border-t border-sidebar-border">
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-3 py-4 text-sidebar-foreground hover:text-destructive transition-colors text-sm font-medium border-b border-sidebar-border/50"
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span>Cerrar Sesión</span>}
+        </button>
+        
+        <button
+          onClick={onToggleCollapse}
+          className="w-full flex items-center justify-center h-12 text-sidebar-foreground hover:text-white transition-colors"
+        >
+          <ChevronLeft className={`w-5 h-5 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} />
+        </button>
+      </div>
     </aside>
   );
 };

@@ -1,21 +1,41 @@
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import AppSidebar from "@/components/layout/AppSidebar";
 import Topbar from "@/components/layout/Topbar";
 import BottomNav from "@/components/layout/BottomNav";
 import DashboardView from "@/components/dashboard/DashboardView";
 import POSView from "@/components/pos/POSView";
+import InventoryView from "@/components/inventory/InventoryView";
+import OrdersView from "@/components/orders/OrdersView";
+import PatientsView from "@/components/patients/PatientsView";
+import QuotationsView from "@/components/quotations/QuotationsView";
+import AdminPanel from "@/pages/Admin";
 
 const Index = () => {
-  const [activeView, setActiveView] = useState("dashboard");
+  const { isSeller } = useAuth();
+  const [activeView, setActiveView] = useState(isSeller ? "pos" : "dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const renderView = () => {
     switch (activeView) {
       case "pos":
         return <POSView />;
+      case "patients":
+        return <PatientsView />;
+      case "inventory":
+        return <InventoryView />;
+      case "orders":
+        return <OrdersView />;
+      case "quotations":
+        return <QuotationsView />;
+      case "admin":
+        return <AdminPanel />;
+      case "eye-exam":
+      case "settings":
+        return <PatientsView />; // Temporal mientras se crean vistas específicas
       case "dashboard":
       default:
-        return <DashboardView />;
+        return <DashboardView onNavigate={setActiveView} />;
     }
   };
 
