@@ -12,11 +12,17 @@ import {
   ArrowUpRight,
   AlertTriangle,
   Clock,
+  Search,
+  ArrowRight,
   LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useFinancials } from "@/hooks/useFinancials";
+import { useInventory } from "@/hooks/useInventory";
+import { useOrders } from "@/hooks/useOrders";
 import { useEffect, useState } from "react";
 import { Transaction } from "@/types/financial";
 
@@ -40,27 +46,18 @@ const quickActions: QuickAction[] = [
   { label: "Examen vista", icon: Eye, color: "text-[hsl(270,60%,55%)]", view: "eye-exam" },
 ];
 
-const activities = [
-  { text: "Venta a Juan Pérez", amount: "$2,500", time: "hace 10 min" },
-  { text: "Nuevo paciente: Maria García", amount: "", time: "hace 25 min" },
-  { text: "Pedido #1042 entregado", amount: "$890", time: "hace 1 hr" },
-  { text: "Examen visual: Robert Smith", amount: "$150", time: "hace 2 hrs" },
-  { text: "Venta a Emily Chen", amount: "$1,200", time: "hace 3 hrs" },
-];
-
-const alerts = [
-  { text: "Stock bajo en Ray-Ban RB5154", type: "warning" as const },
-  { text: "3 entregas retrasadas", type: "destructive" as const },
-  { text: "Pedido #987 listo para entrega", type: "success" as const },
-  { text: "Reclamo de seguro pendiente", type: "warning" as const },
-];
-
 const DashboardView = ({ onNavigate }: DashboardViewProps) => {
   const { getFinancialSummary, isLoading: loadingFinances } = useFinancials();
+  const { fetchProducts } = useInventory();
+  const { fetchOrders } = useOrders();
   
   const [totalIncome, setTotalIncome] = useState(0);
   const [todayIncome, setTodayIncome] = useState(0);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeAlerts, setActiveAlerts] = useState<{text: string, type: "warning" | "destructive" | "success"}[]>([]);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   useEffect(() => {
     const fetchTxs = async () => {
@@ -80,10 +77,47 @@ const DashboardView = ({ onNavigate }: DashboardViewProps) => {
       });
       
       setTodayIncome(todayIncObj);
+      setAllTransactions(summary.transactions);
       setRecentTransactions(summary.transactions.slice(0, 5)); // Mostrar sólo 5
+
+      // Fetch dynamic alerts data
+      const products = await fetchProducts();
+      const fetchedOrders = await fetchOrders();
+
+      const newAlerts: {text: string, type: "warning" | "destructive" | "success"}[] = [];
+      const lowStockProducts = products.filter(p => p.stock > 0 && p.stock <= 5);
+      const outOfStockProducts = products.filter(p => p.stock <= 0);
+
+      newAlerts.push(
+         ...outOfStockProducts.map(p => ({ 
+             text: `Agotado: ${p.name}`, 
+             type: "destructive" as const 
+         }))
+      );
+      newAlerts.push(
+         ...lowStockProducts.map(p => ({ 
+             text: `Stock bajo en ${p.name} (${p.stock} pz)`, 
+             type: "warning" as const 
+         }))
+      );
+
+      const pending = fetchedOrders.filter(o => o.status === "PENDING" || o.status === "IN_PROGRESS");
+      setPendingOrdersCount(pending.length);
+
+      const readyOrders = fetchedOrders.filter(o => o.status === "READY");
+      if (readyOrders.length > 0) {
+         newAlerts.push({ text: `${readyOrders.length} pedido(s) listo(s) para entrega`, type: "success" as const });
+      }
+
+      if (newAlerts.length === 0) {
+         newAlerts.push({ text: "Todo en orden. No hay alertas críticas.", type: "success" as const });
+      }
+
+      setActiveAlerts(newAlerts.slice(0, 6));
     };
     fetchTxs();
-  }, [getFinancialSummary]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentKpis = [
     {
@@ -104,7 +138,7 @@ const DashboardView = ({ onNavigate }: DashboardViewProps) => {
     },
     {
       title: "Citas de hoy",
-      value: "12",
+      value: "0",
       trend: "-",
       trendUp: true,
       icon: CalendarCheck,
@@ -112,9 +146,9 @@ const DashboardView = ({ onNavigate }: DashboardViewProps) => {
     },
     {
       title: "Pedidos pendientes",
-      value: "8",
+      value: pendingOrdersCount.toString(),
       trend: "-",
-      trendUp: false,
+      trendUp: pendingOrdersCount === 0,
       icon: PackageOpen,
       color: "from-[hsl(38,92%,50%)] to-[hsl(25,90%,50%)]",
     },
@@ -129,6 +163,13 @@ const DashboardView = ({ onNavigate }: DashboardViewProps) => {
     month: "long",
     day: "numeric",
   });
+
+  const displayedTransactions = searchTerm.trim() === "" 
+    ? recentTransactions 
+    : allTransactions.filter(tx => 
+        tx.noteNumber?.toLowerCase().includes(searchTerm.toLowerCase().trim()) ||
+        tx.description.toLowerCase().includes(searchTerm.toLowerCase().trim())
+      );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -191,31 +232,61 @@ const DashboardView = ({ onNavigate }: DashboardViewProps) => {
       {/* Activity & Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Activity History */}
-        <Card className="rounded-2xl shadow-sm border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              Historial de Actividad
+    <Card className="rounded-2xl shadow-sm border-border flex flex-col h-full">
+          <CardHeader className="pb-3 border-b border-border/50 shrink-0">
+            <CardTitle className="text-base font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" />
+                Historial de Actividad
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input 
+                    placeholder="Filtrar nota..." 
+                    className="h-8 pl-8 text-[10px] w-24 sm:w-32 bg-muted/30 border-border"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 px-2 text-[10px] font-bold text-primary hover:bg-primary/5"
+                  onClick={() => onNavigate?.("history")}
+                >
+                  Ver Todo <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 pt-4 flex-1 overflow-y-auto max-h-[400px]">
             {loadingFinances ? (
               <p className="text-sm text-center text-muted-foreground p-4">Cargando...</p>
-            ) : recentTransactions.length === 0 ? (
-              <p className="text-sm text-center text-muted-foreground p-4">No hay actividad reciente.</p>
+            ) : displayedTransactions.length === 0 ? (
+              <p className="text-sm text-center text-muted-foreground p-4">
+                {searchTerm.trim() !== "" ? "No hay resultados para tu búsqueda." : "No hay actividad reciente."}
+              </p>
             ) : (
-              recentTransactions.map((tx) => {
+              displayedTransactions.map((tx) => {
                 const isIncome = tx.type === "INCOME";
                 return (
-                  <div key={tx.id} className="flex items-center gap-3 text-sm">
+                  <div key={tx.id} className="flex items-center gap-3 text-sm border-b border-border/30 pb-2 last:border-0 last:pb-0">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isIncome ? 'bg-success/10' : 'bg-destructive/10'}`}>
                       <DollarSign className={`w-3.5 h-3.5 ${isIncome ? 'text-success' : 'text-destructive'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-foreground font-medium truncate">{tx.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {tx.noteNumber && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-primary/10 text-primary border border-primary/20">
+                            Nota: {tx.noteNumber}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className={`text-sm font-semibold ${isIncome ? 'text-success' : 'text-destructive'}`}>
                       {isIncome ? '+' : '-'}${tx.amount.toFixed(2)}
@@ -236,7 +307,7 @@ const DashboardView = ({ onNavigate }: DashboardViewProps) => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {alerts.map((alert, i) => (
+            {activeAlerts.map((alert, i) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
                 <AlertTriangle
                   className={`w-4 h-4 flex-shrink-0 ${

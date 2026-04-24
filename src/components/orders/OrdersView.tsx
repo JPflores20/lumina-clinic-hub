@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Plus, Search, MapPin, Eye } from "lucide-react";
+import { ClipboardList, Plus, Search, MapPin, Eye, FileText } from "lucide-react";
+import { generateLabReportPDF } from "@/utils/pdfGenerator";
 
 const getStatusColor = (status: OrderStatus) => {
   switch (status) {
@@ -33,57 +34,73 @@ const getStatusLabel = (status: OrderStatus) => {
 };
 
 export const OrdersView = () => {
-  const { fetchOrders, addOrder, updateOrderStatus, isLoading } = useOrders();
+  const { fetchOrders, subscribeOrders, updateOrderStatus, isLoading } = useOrders();
   const { fetchBranches } = useAdmin();
   const { isAdmin } = useAuth();
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
 
-  const loadData = async () => {
-    const [fetchedOrders, fetchedBranches] = await Promise.all([
-      fetchOrders(),
-      isAdmin ? fetchBranches() : Promise.resolve([]) 
-    ]);
-    setOrders(fetchedOrders);
-    if (isAdmin) setBranches(fetchedBranches);
-  };
-
   useEffect(() => {
-    loadData();
-  }, [fetchOrders]);
+    const loadBranches = async () => {
+      if (isAdmin) {
+        const fetchedBranches = await fetchBranches();
+        setBranches(fetchedBranches);
+      }
+    };
+    loadBranches();
 
-  const handleSimulateOrder = async () => {
-    // Para probar el renderizado cronológico
-    await addOrder({
-      patientName: "Paciente Simulado " + Math.floor(Math.random() * 1000),
-      frameModel: "Ray-Ban RX53" + Math.floor(Math.random() * 99),
-      lensType: "MONOFOCAL",
-      prescription: {
-        sphereOd: -1.50, cylinderOd: -0.50, axisOd: 180,
-        sphereOi: -1.75, cylinderOi: -0.50, axisOi: 175,
-        pupillaryDistance: 62
-      },
-      branchId: branches[0]?.id || undefined, // Lo asigna a la primera sucursal si es admin
+    // Suscripción en tiempo real
+    const unsubscribe = subscribeOrders((fetchedOrders) => {
+      setOrders(fetchedOrders);
     });
-    loadData();
-  };
+
+    return () => unsubscribe();
+  }, [isAdmin, subscribeOrders, fetchBranches]);
 
   const getBranchName = (id?: string) => {
     if (!id) return "Desconocida";
     return branches.find(b => b.id === id)?.name || "Sucursal Local";
   };
 
+  const handlePrintReport = async () => {
+    // 1. Fetch ALL orders (null filter)
+    const allOrders = await fetchOrders(null);
+    
+    // 2. Sort chronologically (oldest first)
+    const sortedOrders = [...allOrders].sort((a, b) => 
+      new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime()
+    );
+    
+    // 3. Prepare branch names mapping
+    const branchNames: Record<string, string> = {};
+    branches.forEach(b => {
+      branchNames[b.id] = b.name;
+    });
+    
+    // 4. Generate and save PDF
+    const doc = generateLabReportPDF(sortedOrders, branchNames);
+    doc.save(`Reporte_Laboratorio_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pedidos de Laboratorio</h1>
-          <p className="text-muted-foreground mt-2">Seguimiento cronológico de la fabricación y entrega de lentes.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Panel de Control de Taller</h1>
+          <p className="text-muted-foreground mt-2">Seguimiento en tiempo real de la fabricación y entrega de lentes.</p>
         </div>
-        <Button onClick={handleSimulateOrder} variant="outline" disabled={isLoading} className="border-primary/20 text-primary hover:bg-primary/10">
-          <Plus className="w-4 h-4 mr-2" /> Simular Pedido Test
-        </Button>
+        {isAdmin && (
+          <Button 
+            onClick={handlePrintReport} 
+            variant="outline" 
+            className="flex items-center gap-2 border-primary/20 hover:bg-primary/5"
+            disabled={isLoading}
+          >
+            <FileText className="w-4 h-4 text-primary" />
+            Imprimir Reporte General
+          </Button>
+        )}
       </div>
 
       <Card className="border-border shadow-sm">
@@ -110,7 +127,7 @@ export const OrdersView = () => {
               {orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                    No hay pedidos registrados. Usa el botón "Simular Pedido" para pruebas.
+                    No hay pedidos registrados en el sistema.
                   </TableCell>
                 </TableRow>
               ) : (

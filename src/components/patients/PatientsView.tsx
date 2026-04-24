@@ -11,17 +11,17 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { Users, UserPlus, FileText, Send, ShoppingBag, Phone, MapPin, Building2, Plus, Mail } from "lucide-react";
+import { Users, UserPlus, FileText, Send, ShoppingBag, Phone, MapPin, Building2, Plus, Mail, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Transaction } from "@/types/financial";
 import { Badge } from "@/components/ui/badge";
 
 export const PatientsView = () => {
-  const { fetchPatients, addPatient, fetchClinicalRecords, addClinicalRecord, isLoading } = usePatients();
+  const { fetchPatients, addPatient, fetchClinicalRecords, addClinicalRecord, deletePatient, isLoading } = usePatients();
   const { addOrder } = useOrders();
   const { fetchBranches } = useAdmin();
   const { fetchTransactionsByPatient } = useFinancials();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: currentUser } = useAuth();
 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -328,9 +328,28 @@ export const PatientsView = () => {
                    </CardDescription>
                  </div>
                  {!isExamining && (
-                    <Button onClick={() => setIsExamining(true)}>
-                      <FileText className="w-4 h-4 mr-2" /> Realizar Examen
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={() => setIsExamining(true)}>
+                        <FileText className="w-4 h-4 mr-2" /> Realizar Examen
+                      </Button>
+                      {(isAdmin || currentUser?.permissions?.canDeleteItems) && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          onClick={() => {
+                            if (confirm(`¿Estás seguro de eliminar a ${selectedPatient.fullName}?`)) {
+                              deletePatient(selectedPatient.id).then(() => {
+                                setSelectedPatient(null);
+                                loadData();
+                              });
+                            }
+                          }}
+                        >
+                           <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                  )}
                </div>
              </CardHeader>

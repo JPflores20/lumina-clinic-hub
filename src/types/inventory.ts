@@ -2,6 +2,7 @@ export type ProductCategory = "FRAME" | "LENS" | "ACCESSORY" | "CONTACT_LENS";
 
 export interface Product {
   id: string;
+  code: string; // SKU o Identificador manual
   name: string;
   category: ProductCategory;
   brand?: string;

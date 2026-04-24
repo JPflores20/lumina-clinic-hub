@@ -100,6 +100,7 @@ export const useAdmin = () => {
         role: data.role,
         branchId: data.branchId || null,
         status: data.status || "ACTIVE",
+        permissions: data.permissions || null,
         createdAt: new Date().toISOString()
       });
 

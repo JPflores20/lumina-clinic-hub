@@ -11,24 +11,33 @@ import {
   UserCircle2,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  FileText,
+  CheckCircle2,
+  Download,
+  Share2
 } from "lucide-react";
+import { downloadTicketPDF, shareTicketPDF, TicketData } from "@/utils/pdfGenerator";
+import { useBranches } from "@/contexts/BranchContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
   DialogFooter,
-  DialogTrigger 
+  DialogTrigger,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useFinancials } from "@/hooks/useFinancials";
 import { useInventory } from "@/hooks/useInventory";
 import { usePatients } from "@/hooks/usePatients";
-import { useAuth } from "@/contexts/AuthContext";
+import { useOrders } from "@/hooks/useOrders";
 import { Product } from "@/types/inventory";
 import { Patient } from "@/types/patient";
 import { toast } from "sonner";
@@ -42,11 +51,13 @@ const POSView = () => {
   
   // Custom Hooks
   const { fetchProducts, updateProduct, isLoading: invLoading } = useInventory();
-  const { fetchPatients, addPatient, isLoading: patLoading } = usePatients();
+  const { fetchPatients, addPatient, fetchClinicalRecords, isLoading: patLoading } = usePatients();
   const { addTransaction, isLoading: finLoading } = useFinancials();
+  const { addOrder } = useOrders();
 
   // Unified Loading
   const isBusy = invLoading || patLoading || finLoading;
+  const { selectedBranch } = useBranches();
 
   // View States
   const [catalog, setCatalog] = useState<Product[]>([]);
@@ -54,6 +65,11 @@ const POSView = () => {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("card");
+  const [discount, setDiscount] = useState<string>("0");
+  const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
+  const [subtotal, setSubtotal] = useState(0);
+  const [tax, setTax] = useState(0);
+  const [total, setTotal] = useState(0);
   
   // Patient Selection States
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
@@ -66,6 +82,10 @@ const POSView = () => {
   const [newPatPhone, setNewPatPhone] = useState("");
   const [newPatEmail, setNewPatEmail] = useState("");
   const [newPatAddress, setNewPatAddress] = useState("");
+
+  // Post-Checkout states
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [lastTxData, setLastTxData] = useState<TicketData | null>(null);
 
   const loadData = async () => {
     const fetchedInv = await fetchProducts();
@@ -80,8 +100,27 @@ const POSView = () => {
 
   const filtered = catalog.filter((p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase())
+      p.category.toLowerCase().includes(search.toLowerCase()) ||
+      (p.code || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => {
+    const s = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
+    const dVal = parseFloat(discount) || 0;
+    
+    let dAmount = 0;
+    if (discountType === "percent") {
+      dAmount = s * (dVal / 100);
+    } else {
+      dAmount = dVal;
+    }
+
+    const subAfterDiscount = Math.max(0, s - dAmount);
+    const t = subAfterDiscount * 0.16;
+    setSubtotal(s);
+    setTax(t);
+    setTotal(subAfterDiscount + t);
+  }, [cart, discount, discountType]);
 
   const addToCart = (product: Product) => {
     if (product.stock <= 0) {
@@ -171,8 +210,11 @@ const POSView = () => {
 
   const processCheckout = async () => {
     // 2. Calcular Totales localmente para la transacción
-    const txSubtotal = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
-    const txTotal = txSubtotal + (txSubtotal * 0.16);
+    const txSubtotal = subtotal;
+    const dVal = parseFloat(discount) || 0;
+    const txDiscount = discountType === "percent" ? (subtotal * (dVal / 100)) : dVal;
+    const txTax = tax;
+    const txTotal = total;
     const totalQty = cart.reduce((s, c) => s + c.quantity, 0);
 
     if (paymentMethod === "cash") {
@@ -196,10 +238,17 @@ const POSView = () => {
 
     const txId = await addTransaction({
       type: "INCOME",
-      amount: txTotal,   
+      amount: txTotal,
       description: description,
       patientId: finalPatientId || undefined,
-      patientName: finalPatientName || undefined
+      patientName: finalPatientName || undefined,
+      items: cart.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.price * item.quantity
+      })),
+      discount: txDiscount
     });
 
     if (txId) {
@@ -208,19 +257,65 @@ const POSView = () => {
          await updateProduct(item.id, { stock: item.stock - item.quantity });
       }
 
+      // 4. Generar Pedido a Laboratorio Automático si aplica
+      if (selectedPatientId) {
+        const hasLabItems = cart.some(item => item.category === "FRAME" || item.category === "LENS");
+        if (hasLabItems) {
+           const records = await fetchClinicalRecords(selectedPatientId);
+           if (records && records.length > 0) {
+             const latestPrescription = records[0].prescription;
+             const frameItem = cart.find(item => item.category === "FRAME");
+             const lensItem = cart.find(item => item.category === "LENS");
+             
+             await addOrder({
+               patientName: finalPatientName,
+               patientId: selectedPatientId,
+               lensType: "MONOFOCAL", // Valor por defecto, se puede ajustar en Pedidos
+               frameModel: frameItem ? frameItem.name : "Armazón del Cliente",
+               prescription: latestPrescription,
+               notes: `Pedido generado automáticamente desde Venta Folio ${txId.substring(0,8)}`,
+               branchId: selectedBranch?.id || user?.branchId || null
+             });
+             toast.info("Se ha enviado una orden al taller automáticamente.");
+           } else {
+             toast.warning("No se generó orden a taller: El paciente no tiene exámenes (receta) registrados.");
+           }
+        }
+      }
+
+      // 5. Preparar datos del ticket para el modal de éxito
+      const ticketData: TicketData = {
+        noteNumber: txId.substring(0, 8).toUpperCase(),
+        date: new Date().toISOString(),
+        branchName: selectedBranch?.name || "Sucursal Local",
+        branchAddress: selectedBranch?.address || "Dirección de la sucursal",
+        patientName: finalPatientName,
+        items: cart.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal: item.price * item.quantity
+        })),
+        subtotal: txSubtotal,
+        discount: txDiscount,
+        tax: txTax,
+        total: txTotal
+      };
+
+      setLastTxData(ticketData);
       toast.success("Venta procesada y enlazada con éxito.");
       setCart([]); 
       setSelectedPatientId("");
       setAmountReceived("");
+      setDiscount("0");
+      setDiscountType("amount");
       setIsCheckoutModalOpen(false);
+      setIsSuccessModalOpen(true);
       loadData(); // Recargar stock actualizado
     }
   };
 
-  const subtotal = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
-  const tax = subtotal * 0.16;
-  const total = subtotal + tax;
-
+  // ELIMINAMOS ESTAS LINEAS YA QUE LAS PASAMOS A USEEFFECT
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full animate-fade-in">
       
@@ -261,6 +356,9 @@ const POSView = () => {
                         <Plus className="w-5 h-5 text-primary" />
                         Registrar Paciente Nuevo
                       </DialogTitle>
+                      <DialogDescription>
+                        Ingresa los datos personales del paciente para crear su expediente.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="space-y-2">
@@ -370,24 +468,37 @@ const POSView = () => {
             >
               <Card className={`rounded-2xl shadow-sm hover-lift border-border cursor-pointer h-full transition-all ${isAgotado ? 'opacity-50 grayscale' : ''}`}>
                 <CardContent className="p-4 flex flex-col h-full">
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge variant="secondary" className="text-[10px] font-medium uppercase">
-                      {product.category}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-bold ${
+                  <div className="flex flex-col gap-2 mb-2">
+                    <div className="flex items-center justify-between">
+                       <Badge variant="secondary" className="text-[10px] uppercase font-medium bg-muted text-muted-foreground border-none">
+                         {product.category}
+                       </Badge>
+                       {product.code && (
+                         <span className="text-[10px] font-black text-destructive font-mono uppercase bg-destructive/5 px-2 py-0.5 rounded-md border border-destructive/10">
+                           ID: {product.code}
+                         </span>
+                       )}
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-[9px] w-fit font-bold ${
                         isAgotado ? "border-destructive/50 text-destructive bg-destructive/10" : 
                         product.stock < 5 ? "border-destructive/30 text-destructive" : "border-success/30 text-success"
                       }`}
                     >
                       {isAgotado ? 'AGOTADO' : `${product.stock} en stock`}
                     </Badge>
-                  </div>
+                   </div>
                   <h3 className="font-semibold text-foreground text-sm mt-1 line-clamp-2">
                     {product.name}
                   </h3>
-                  {product.color && <span className="text-[10px] text-muted-foreground">{product.color}</span>}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {product.color && (
+                      <span className="text-[10px] text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded-md">
+                        {product.color}
+                      </span>
+                    )}
+                  </div>
                   
                   <div className="mt-auto pt-3">
                      <p className="text-xl font-bold text-primary">
@@ -537,15 +648,71 @@ const POSView = () => {
               <CreditCard className="w-5 h-5 text-primary" />
               Confirmar Pago
             </DialogTitle>
+            <DialogDescription>
+              Completa los detalles del pago y aplica descuentos si es necesario.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="py-6 space-y-6">
-            <div className="text-center p-4 bg-muted/30 rounded-2xl border border-border">
-               <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Total a Pagar</span>
-               <p className="text-4xl font-black text-primary mt-1">${total.toFixed(2)}</p>
-               <Badge variant="outline" className="mt-2">
-                  {paymentMethod === 'cash' ? 'Efectivo' : 'Tarjeta / Transferencia'}
-               </Badge>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                    <Label>Subtotal</Label>
+                    <div className="text-xl font-bold">${subtotal.toFixed(2)}</div>
+                 </div>
+                 <div className="space-y-2">
+                    <Label className="text-destructive font-bold flex justify-between">
+                       Descuento
+                       <div className="flex bg-muted rounded-md p-0.5 h-6">
+                          <button 
+                            type="button"
+                            disabled={!isAdmin && user?.permissions?.canApplyDiscounts === false}
+                            onClick={() => setDiscountType("amount")}
+                            className={`px-2 text-[10px] rounded transition-all ${discountType === 'amount' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'} disabled:opacity-50`}
+                          >
+                            $
+                          </button>
+                          <button 
+                            type="button"
+                            disabled={!isAdmin && user?.permissions?.canApplyDiscounts === false}
+                            onClick={() => setDiscountType("percent")}
+                            className={`px-2 text-[10px] rounded transition-all ${discountType === 'percent' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'} disabled:opacity-50`}
+                          >
+                            %
+                          </button>
+                       </div>
+                    </Label>
+                    <div className="relative">
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        max={discountType === 'percent' ? 100 : subtotal}
+                        value={discount} 
+                        disabled={!isAdmin && user?.permissions?.canApplyDiscounts === false}
+                        onChange={(e) => setDiscount(e.target.value)} 
+                        className="text-lg font-bold text-destructive border-destructive/20 focus:border-destructive pr-8 disabled:bg-muted/50"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-destructive/40 pointer-events-none">
+                        {discountType === 'amount' ? '$' : '%'}
+                      </span>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="flex justify-between items-center p-4 bg-primary/5 rounded-2xl border border-primary/20">
+                 <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider line-height-1">Total Final</span>
+                    <span className="text-xs text-muted-foreground italic">(Con IVA aplicado)</span>
+                 </div>
+                 <span className="text-3xl font-black text-primary">${total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-center p-3 rounded-lg border border-border bg-muted/30">
+               <span className="text-sm font-semibold flex items-center justify-center gap-2 text-muted-foreground">
+                  <FileText className="w-4 h-4" /> Se generará nota de sucursal.
+               </span>
             </div>
 
             {paymentMethod === "cash" && (
@@ -587,6 +754,55 @@ const POSView = () => {
             >
               {isBusy ? "Procesando..." : "Confirmar y Finalizar Venta"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE ÉXITO Y TICKET */}
+      <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+        <DialogContent className="sm:max-w-[400px] text-center">
+          <div className="flex flex-col items-center justify-center py-6 space-y-4">
+             <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-10 h-10 text-success" />
+             </div>
+             <div className="space-y-1">
+                <DialogTitle className="text-2xl font-bold">¡Venta Exitosa!</DialogTitle>
+                <p className="text-muted-foreground text-sm">La transacción ha sido registrada correctamente.</p>
+             </div>
+          </div>
+
+          <div className="bg-muted/30 rounded-2xl p-4 border border-border space-y-3">
+             <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Folio de Venta:</span>
+                <span className="font-mono font-bold">{lastTxData?.noteNumber}</span>
+             </div>
+             <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total Cobrado:</span>
+                <span className="font-bold text-primary">${lastTxData?.total.toFixed(2)}</span>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 py-4">
+             <Button 
+                variant="outline" 
+                className="h-12 rounded-xl border-2 hover:bg-muted font-semibold flex items-center justify-center gap-2"
+                onClick={() => lastTxData && downloadTicketPDF(lastTxData)}
+             >
+                <Download className="w-4 h-4" /> Descargar Ticket PDF
+             </Button>
+             
+             <Button 
+                className="h-12 rounded-xl bg-primary hover:bg-primary/90 font-bold flex items-center justify-center gap-2"
+                onClick={() => lastTxData && shareTicketPDF(lastTxData)}
+             >
+                <Share2 className="w-4 h-4" /> Enviar por Correo / Compartir
+             </Button>
+          </div>
+
+          <DialogFooter>
+             <Button variant="ghost" onClick={() => setIsSuccessModalOpen(false)} className="w-full">
+                Finalizar y Nueva Venta
+             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

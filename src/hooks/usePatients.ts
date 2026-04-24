@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, doc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Patient, PatientRecord } from "@/types/patient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,11 +137,27 @@ export const usePatients = () => {
     }
   };
 
+  const deletePatient = async (id: string) => {
+    setIsLoading(true);
+    try {
+      await deleteDoc(doc(db, "patients", id));
+      toast.success("Paciente eliminado correctamente.");
+      return true;
+    } catch (error) {
+      console.error("Error deleting patient:", error);
+      toast.error("Error al eliminar al paciente.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     isLoading,
     fetchPatients,
     addPatient,
     fetchClinicalRecords,
-    addClinicalRecord
+    addClinicalRecord,
+    deletePatient
   };
 };

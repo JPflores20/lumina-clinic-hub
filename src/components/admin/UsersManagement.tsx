@@ -25,6 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export const UsersManagement = () => {
   const { fetchUsers, addUser, updateUser, deleteUser, fetchBranches, resetUserPassword, isLoading } = useAdmin();
@@ -46,6 +48,22 @@ export const UsersManagement = () => {
   const [editPhone, setEditPhone] = useState("");
   const [editRole, setEditRole] = useState<Role>("SELLER");
   const [editBranchId, setEditBranchId] = useState("");
+  const [permissions, setPermissions] = useState({
+    canAccessFinancials: true,
+    canAccessInventory: true,
+    canAccessPatients: true,
+    canApplyDiscounts: true,
+    canEditTransactions: false,
+    canDeleteItems: false,
+  });
+  const [editPermissions, setEditPermissions] = useState({
+    canAccessFinancials: true,
+    canAccessInventory: true,
+    canAccessPatients: true,
+    canApplyDiscounts: true,
+    canEditTransactions: false,
+    canDeleteItems: false,
+  });
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const loadData = async () => {
@@ -68,7 +86,15 @@ export const UsersManagement = () => {
        phone,
        password,
        role, 
-       branchId: role === "SELLER" ? branchId : undefined 
+       branchId: role === "SELLER" ? branchId : undefined,
+       permissions: role === "ADMIN" ? {
+          canAccessFinancials: true,
+          canAccessInventory: true,
+          canAccessPatients: true,
+          canApplyDiscounts: true,
+          canEditTransactions: true,
+          canDeleteItems: true,
+       } : permissions
     });
     
     if (id) {
@@ -90,6 +116,14 @@ export const UsersManagement = () => {
     setEditPhone(user.phone || "");
     setEditRole(user.role);
     setEditBranchId(user.branchId || "");
+    setEditPermissions(user.permissions || {
+      canAccessFinancials: user.role === "ADMIN",
+      canAccessInventory: user.role === "ADMIN",
+      canAccessPatients: user.role === "ADMIN",
+      canApplyDiscounts: user.role === "ADMIN",
+      canEditTransactions: user.role === "ADMIN",
+      canDeleteItems: user.role === "ADMIN",
+    });
   };
 
   const handleUpdateUser = async () => {
@@ -99,7 +133,8 @@ export const UsersManagement = () => {
       email: editEmail,
       phone: editPhone,
       role: editRole,
-      branchId: editRole === "SELLER" ? editBranchId : undefined
+      branchId: editRole === "SELLER" ? editBranchId : undefined,
+      permissions: editPermissions
     });
     
     if (success) {
@@ -175,9 +210,41 @@ export const UsersManagement = () => {
                 </div>
               )}
               
-              <Button type="submit" disabled={isLoading} className="mb-0.5 w-full">
-                Registrar Empleado
-              </Button>
+              <div className="lg:col-span-3 border-t pt-4 mt-2">
+                 <label className="text-xs font-bold uppercase text-muted-foreground mb-3 block">Permisos y Accesos (Cajero)</label>
+                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div className="flex items-center space-x-2">
+                       <Switch id="p-fin" checked={permissions.canAccessFinancials} onCheckedChange={(v) => setPermissions({...permissions, canAccessFinancials: v})} />
+                       <Label htmlFor="p-fin" className="text-[11px]">Finanzas</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                       <Switch id="p-inv" checked={permissions.canAccessInventory} onCheckedChange={(v) => setPermissions({...permissions, canAccessInventory: v})} />
+                       <Label htmlFor="p-inv" className="text-[11px]">Inventario</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                       <Switch id="p-pat" checked={permissions.canAccessPatients} onCheckedChange={(v) => setPermissions({...permissions, canAccessPatients: v})} />
+                       <Label htmlFor="p-pat" className="text-[11px]">Pacientes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                       <Switch id="p-disc" checked={permissions.canApplyDiscounts} onCheckedChange={(v) => setPermissions({...permissions, canApplyDiscounts: v})} />
+                       <Label htmlFor="p-disc" className="text-[11px]">Descuentos</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                       <Switch id="p-edit" checked={permissions.canEditTransactions} onCheckedChange={(v) => setPermissions({...permissions, canEditTransactions: v})} />
+                       <Label htmlFor="p-edit" className="text-[11px]">Editar Venta</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                       <Switch id="p-del" checked={permissions.canDeleteItems} onCheckedChange={(v) => setPermissions({...permissions, canDeleteItems: v})} />
+                       <Label htmlFor="p-del" className="text-[11px]">Eliminar</Label>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="lg:col-span-3 flex justify-end">
+                <Button type="submit" disabled={isLoading} className="w-full lg:w-fit bg-primary hover:bg-primary/90">
+                  <Plus className="w-4 h-4 mr-2" /> Registrar Empleado
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -349,6 +416,36 @@ export const UsersManagement = () => {
                   </select>
                 </div>
               )}
+            </div>
+
+            <div className="border-t pt-4">
+               <label className="text-xs font-bold uppercase text-muted-foreground mb-4 block">Configuración de Privilegios</label>
+               <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                     <Label className="text-xs font-medium">Módulo Finanzas</Label>
+                     <Switch checked={editPermissions.canAccessFinancials} onCheckedChange={(v) => setEditPermissions({...editPermissions, canAccessFinancials: v})} />
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                     <Label className="text-xs font-medium">Módulo Inventario</Label>
+                     <Switch checked={editPermissions.canAccessInventory} onCheckedChange={(v) => setEditPermissions({...editPermissions, canAccessInventory: v})} />
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                     <Label className="text-xs font-medium">Gestión Pacientes</Label>
+                     <Switch checked={editPermissions.canAccessPatients} onCheckedChange={(v) => setEditPermissions({...editPermissions, canAccessPatients: v})} />
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                     <Label className="text-xs font-medium">Aplicar Descuentos</Label>
+                     <Switch checked={editPermissions.canApplyDiscounts} onCheckedChange={(v) => setEditPermissions({...editPermissions, canApplyDiscounts: v})} />
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                     <Label className="text-xs font-medium">Editar Transacciones</Label>
+                     <Switch checked={editPermissions.canEditTransactions} onCheckedChange={(v) => setEditPermissions({...editPermissions, canEditTransactions: v})} />
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                     <Label className="text-xs font-medium">Eliminar Registros</Label>
+                     <Switch checked={editPermissions.canDeleteItems} onCheckedChange={(v) => setEditPermissions({...editPermissions, canDeleteItems: v})} />
+                  </div>
+               </div>
             </div>
           </div>
           

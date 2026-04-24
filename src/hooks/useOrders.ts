@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Order, OrderStatus } from "@/types/order";
 import { useAuth } from "@/contexts/AuthContext";
@@ -90,9 +90,38 @@ export const useOrders = () => {
     }
   };
 
+  const subscribeOrders = useCallback((callback: (orders: Order[]) => void, branchIdFilter?: string | null) => {
+    let q = collection(db, "orders");
+    const filterBranchId = branchIdFilter !== undefined ? branchIdFilter : selectedBranch?.id;
+    
+    let queryRef;
+    if (filterBranchId) {
+       queryRef = query(q, where("branchId", "==", filterBranchId), orderBy("orderDate", "desc"));
+    } else {
+       queryRef = query(q, orderBy("orderDate", "desc"));
+    }
+
+    return onSnapshot(queryRef, (snapshot) => {
+      const ordersData: Order[] = [];
+      snapshot.forEach((docSnapshot) => {
+        const docData = docSnapshot.data();
+        let formattedDate = new Date().toISOString();
+        if (docData.orderDate && typeof docData.orderDate.toDate === 'function') {
+           formattedDate = docData.orderDate.toDate().toISOString();
+        }
+        ordersData.push({ id: docSnapshot.id, ...docData, orderDate: formattedDate } as Order);
+      });
+      callback(ordersData);
+    }, (error) => {
+      console.error("Error subscribing to orders:", error);
+      toast.error("Conexión en tiempo real con el taller interrumpida.");
+    });
+  }, [selectedBranch?.id]);
+
   return {
     isLoading,
     fetchOrders,
+    subscribeOrders,
     addOrder,
     updateOrderStatus
   };

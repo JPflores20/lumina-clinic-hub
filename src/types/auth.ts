@@ -10,4 +10,12 @@ export interface User {
   role: Role;
   branchId?: string; // Required if SELLER. Admin might not have one initially.
   status?: UserStatus;
+  permissions?: {
+    canAccessFinancials: boolean;
+    canAccessInventory: boolean;
+    canAccessPatients: boolean;
+    canApplyDiscounts: boolean;
+    canEditTransactions: boolean;
+    canDeleteItems: boolean;
+  };
 }

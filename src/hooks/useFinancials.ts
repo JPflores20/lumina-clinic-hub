@@ -1,5 +1,15 @@
-import { useState } from "react";
-import { collection, addDoc, serverTimestamp, getDocs, query, where, orderBy } from "firebase/firestore";
+import { useState, useCallback } from "react";
+import { 
+  collection, 
+  addDoc, 
+  serverTimestamp, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  doc, 
+  updateDoc 
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Transaction, TransactionType } from "@/types/financial";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +36,15 @@ export const useFinancials = () => {
         Object.entries(data).filter(([_, v]) => v !== undefined)
       );
 
+      // Auto-generación de Número de Nota si no existe
+      if (!cleanData.noteNumber) {
+         const prefixStr = selectedBranch?.name ? selectedBranch.name : branchIdToUse;
+         const prefix = prefixStr.substring(0, 3).toUpperCase();
+         const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
+         const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+         cleanData.noteNumber = `NOTA-${prefix}-${dateStr}-${randomId}`;
+      }
+
       const newTxRef = await addDoc(collection(db, "transactions"), {
         ...cleanData,
         userId: user.id,
@@ -44,7 +63,7 @@ export const useFinancials = () => {
   };
 
   // Obtener transacciones de una sucursal (o todas para un admin)
-  const fetchTransactions = async (branchId?: string | null) => {
+  const fetchTransactions = useCallback(async (branchId?: string | null) => {
     setIsLoading(true);
     try {
       let q = collection(db, "transactions");
@@ -53,9 +72,9 @@ export const useFinancials = () => {
       const filterBranchId = branchId !== undefined ? branchId : selectedBranch?.id;
       
       if (filterBranchId) {
-         q = query(q, where("branchId", "==", filterBranchId), orderBy("date", "desc")) as any;
+         q = query(q, where("branchId", "==", filterBranchId)) as any;
       } else {
-         q = query(q, orderBy("date", "desc")) as any;
+         q = query(q) as any;
       }
 
       const querySnapshot = await getDocs(q);
@@ -73,7 +92,7 @@ export const useFinancials = () => {
         } as Transaction);
       });
 
-      return data;
+      return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } catch (error: any) {
       console.error("Error fetching transactions:", error);
       toast.error("Error al cargar las transacciones financieras.");
@@ -81,15 +100,14 @@ export const useFinancials = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedBranch?.id]);
 
-  const fetchTransactionsByPatient = async (patientId: string) => {
+  const fetchTransactionsByPatient = useCallback(async (patientId: string) => {
     setIsLoading(true);
     try {
       const q = query(
         collection(db, "transactions"), 
-        where("patientId", "==", patientId),
-        orderBy("date", "desc")
+        where("patientId", "==", patientId)
       );
       const querySnapshot = await getDocs(q);
       const data: Transaction[] = [];
@@ -101,17 +119,19 @@ export const useFinancials = () => {
            date: docData.date?.toDate().toISOString() 
         } as Transaction);
       });
-      return data;
+      
+      // Ordenar por fecha descendente en el cliente para evitar requerir un índice compuesto en Firebase
+      return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } catch (error: any) {
       console.error("Error fetching transactions by patient:", error);
       return [];
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Obtener un sumario total
-  const getFinancialSummary = async (branchId?: string | null) => {
+  const getFinancialSummary = useCallback(async (branchId?: string | null) => {
     const txs = await fetchTransactions(branchId);
     let totalIncome = 0;
     let totalExpense = 0;
@@ -127,6 +147,25 @@ export const useFinancials = () => {
       balance: totalIncome - totalExpense,
       transactions: txs
     };
+  }, [fetchTransactions]);
+
+  const updateTransaction = async (id: string, data: Partial<Transaction>) => {
+    setIsLoading(true);
+    try {
+      const txRef = doc(db, "transactions", id);
+      const { id: _, ...updateData } = data as any;
+      
+      // No actualizamos la fecha original si no se especifica explícitamente
+      await updateDoc(txRef, updateData);
+      toast.success("Transacción actualizada con éxito.");
+      return true;
+    } catch (error: any) {
+      console.error("Error updating transaction:", error);
+      toast.error("Error al actualizar la transacción.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return {
@@ -134,6 +173,7 @@ export const useFinancials = () => {
     fetchTransactions,
     fetchTransactionsByPatient,
     getFinancialSummary,
+    updateTransaction,
     isLoading
   };
 };

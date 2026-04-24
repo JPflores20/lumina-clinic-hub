@@ -9,6 +9,7 @@ import InventoryView from "@/components/inventory/InventoryView";
 import OrdersView from "@/components/orders/OrdersView";
 import PatientsView from "@/components/patients/PatientsView";
 import QuotationsView from "@/components/quotations/QuotationsView";
+import ActivityHistoryView from "@/components/history/ActivityHistoryView";
 import AdminPanel from "@/pages/Admin";
 
 const Index = () => {
@@ -28,6 +29,8 @@ const Index = () => {
         return <OrdersView />;
       case "quotations":
         return <QuotationsView />;
+      case "history":
+        return <ActivityHistoryView />;
       case "admin":
         return <AdminPanel />;
       case "eye-exam":

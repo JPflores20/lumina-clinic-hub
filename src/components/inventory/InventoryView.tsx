@@ -21,9 +21,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const InventoryView = () => {
+  const { isAdmin, user: currentUser } = useAuth();
   const { fetchProducts, addProduct, updateProduct, deleteProduct, isLoading } = useInventory();
   const { fetchBranches } = useAdmin();
-  const { isAdmin } = useAuth();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -37,6 +37,7 @@ export const InventoryView = () => {
   const [color, setColor] = useState("");
   const [brand, setBrand] = useState("");
   const [branchId, setBranchId] = useState("");
+  const [productCode, setProductCode] = useState("");
 
   // Edit States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -48,7 +49,8 @@ export const InventoryView = () => {
     price: "",
     stock: "",
     category: "FRAME" as ProductCategory,
-    branchId: ""
+    branchId: "",
+    code: ""
   });
 
   const loadData = async () => {
@@ -66,7 +68,10 @@ export const InventoryView = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !price || !stock) return;
+    if (!name || !price || !stock || !productCode) {
+      toast.error("El nombre, precio, stock y código son obligatorios.");
+      return;
+    }
     
     const parsedPrice = parseFloat(price);
     const parsedStock = parseInt(stock, 10);
@@ -75,6 +80,7 @@ export const InventoryView = () => {
 
     const id = await addProduct({
       name,
+      code: productCode,
       category,
       price: parsedPrice,
       stock: parsedStock,
@@ -87,6 +93,7 @@ export const InventoryView = () => {
       setIsAdding(false);
       // Reset form
       setName("");
+      setProductCode("");
       setPrice("");
       setStock("1");
       setColor("");
@@ -105,7 +112,8 @@ export const InventoryView = () => {
       price: product.price.toString(),
       stock: product.stock.toString(),
       category: product.category,
-      branchId: product.branchId || ""
+      branchId: product.branchId || "",
+      code: product.code || ""
     });
     setIsEditModalOpen(true);
   };
@@ -128,7 +136,8 @@ export const InventoryView = () => {
       price: parsedPrice,
       stock: parsedStock,
       category: editForm.category,
-      branchId: editForm.branchId || undefined
+      branchId: editForm.branchId || undefined,
+      code: editForm.code
     });
 
     if (success) {
@@ -165,7 +174,12 @@ export const InventoryView = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               
-              <div className="space-y-2 lg:col-span-2">
+              <div className="space-y-2 lg:col-span-1">
+                <label className="text-sm font-medium">ID / Código Producto</label>
+                <Input value={productCode} onChange={e => setProductCode(e.target.value)} placeholder="Ej. L-001, RX-99" required />
+              </div>
+
+              <div className="space-y-2 lg:col-span-1">
                 <label className="text-sm font-medium">Nombre / Modelo</label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Ray-Ban Wayfarer" required />
               </div>
@@ -233,6 +247,7 @@ export const InventoryView = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[120px]">ID / Código</TableHead>
                 <TableHead>Artículo</TableHead>
                 <TableHead>Detalles</TableHead>
                 <TableHead>Precio</TableHead>
@@ -253,6 +268,11 @@ export const InventoryView = () => {
                   const isOutOfStock = product.stock <= 0;
                   return (
                   <TableRow key={product.id} className={isOutOfStock ? "opacity-50 bg-muted/20" : ""}>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono text-[10px] tracking-tight bg-muted/50">
+                         {product.code || 'S/ID'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="font-medium text-foreground flex items-center gap-2">
                         {product.name}
@@ -279,26 +299,36 @@ export const InventoryView = () => {
                       </span>
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground uppercase text-[10px]">
                         {getBranchName(product.branchId)}
                       </TableCell>
                     )}
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(product)}>
-                                <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => {
-                                if (confirm(`¿Estás seguro de eliminar ${product.name}?`)) {
-                                   deleteProduct(product.id).then(()=> loadData());
-                                }
-                            }}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors" 
+                            onClick={() => handleOpenEdit(product)}
+                            disabled={!isAdmin && currentUser?.permissions?.canAccessInventory === false}
+                          >
+                              <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors" 
+                            onClick={() => {
+                              if (confirm(`¿Estás seguro de eliminar ${product.name}?`)) {
+                                 deleteProduct(product.id).then(()=> loadData());
+                              }
+                            }}
+                            disabled={!isAdmin && currentUser?.permissions?.canDeleteItems === false}
+                          >
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 )})
               )}
@@ -318,6 +348,14 @@ export const InventoryView = () => {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Código / ID</Label>
+              <Input 
+                className="col-span-3 font-mono" 
+                value={editForm.code} 
+                onChange={e => setEditForm({...editForm, code: e.target.value})} 
+              />
+            </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">Nombre</Label>
               <Input 

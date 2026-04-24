@@ -9,7 +9,9 @@ import {
   ChevronLeft,
   ShieldAlert,
   LogOut,
-  FileText
+  FileText,
+  History as HistoryIcon,
+  Hammer
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -26,18 +28,35 @@ const menuItems = [
   { id: "patients", label: "Pacientes", icon: Users },
   { id: "eye-exam", label: "Examen Visual", icon: Eye },
   { id: "inventory", label: "Inventario", icon: Package },
-  { id: "orders", label: "Pedidos", icon: ClipboardList },
+  { id: "orders", label: "Taller", icon: Hammer },
+  { id: "history", label: "Historial", icon: HistoryIcon },
   { id: "quotations", label: "Cotización", icon: FileText },
   { id: "settings", label: "Configuración", icon: Settings },
 ];
 
 const AppSidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse }: AppSidebarProps) => {
-  const { isAdmin, logout } = useAuth();
+  const { isAdmin, user, logout } = useAuth();
   
-  // Condicionalmente agreamos la opción de Admin
-  const visibleMenuItems = isAdmin 
-    ? [...menuItems, { id: "admin", label: "Administración", icon: ShieldAlert }]
-    : menuItems;
+  const visibleMenuItems = menuItems.filter(item => {
+    // Si es Admin, tiene acceso a todo
+    if (isAdmin) return true;
+    
+    // Si no es Admin, revisamos permisos específicos
+    if (!user?.permissions) return true; // Retrocompatibilidad
+    
+    switch(item.id) {
+      case 'dashboard': return user.permissions.canAccessFinancials;
+      case 'history': return user.permissions.canAccessFinancials;
+      case 'inventory': return user.permissions.canAccessInventory;
+      case 'patients': return user.permissions.canAccessPatients;
+      default: return true;
+    }
+  });
+
+  // Agregamos la opción de Admin al final solo si es ADMIN
+  if (isAdmin) {
+    visibleMenuItems.push({ id: "admin", label: "Administración", icon: ShieldAlert });
+  }
 
   return (
     <aside

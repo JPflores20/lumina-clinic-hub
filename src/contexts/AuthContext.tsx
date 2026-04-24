@@ -44,7 +44,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 name: data.name || "Usuario",
                 role: data.role || "SELLER",
                 branchId: data.branchId,
-                status: data.status || "ACTIVE"
+                status: data.status || "ACTIVE",
+                permissions: data.permissions
              } as User);
           } else {
              // Si el documento en Firestore no existe, cerramos sesión para evitar estados inconsistentes
