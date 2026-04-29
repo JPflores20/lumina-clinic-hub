@@ -31,6 +31,12 @@ export const useLogin = () => {
                toast.success("Cuenta de Administrador Central Creada y Logueada.");
                navigate("/");
                return true;
+            } else if (e.code === "auth/email-already-in-use") {
+               // Si ya existe pero el login falló, es que la contraseña no coincide con lumina123
+               toast.error("El usuario administrador ya existe con una contraseña diferente.");
+               return false;
+            } else {
+               throw e; // Otros errores de creación
             }
          }
       }

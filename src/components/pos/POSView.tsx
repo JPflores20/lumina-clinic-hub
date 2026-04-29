@@ -47,7 +47,7 @@ interface CartItem extends Product {
 }
 
 const POSView = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   // Custom Hooks
   const { fetchProducts, updateProduct, isLoading: invLoading } = useInventory();
