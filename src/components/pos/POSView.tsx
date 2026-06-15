@@ -117,9 +117,9 @@ const POSView = () => {
 
     const subAfterDiscount = Math.max(0, s - dAmount);
     const t = subAfterDiscount * 0.16;
-    setSubtotal(s);
-    setTax(t);
-    setTotal(subAfterDiscount + t);
+    setSubtotal(Number(s.toFixed(2)));
+    setTax(Number(t.toFixed(2)));
+    setTotal(Number((subAfterDiscount + t).toFixed(2)));
   }, [cart, discount, discountType]);
 
   const addToCart = (product: Product) => {
@@ -666,7 +666,7 @@ const POSView = () => {
                        <div className="flex bg-muted rounded-md p-0.5 h-6">
                           <button 
                             type="button"
-                            disabled={!isAdmin && user?.permissions?.canApplyDiscounts === false}
+                            disabled={!isAdmin && !user?.permissions?.canApplyDiscounts}
                             onClick={() => setDiscountType("amount")}
                             className={`px-2 text-[10px] rounded transition-all ${discountType === 'amount' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'} disabled:opacity-50`}
                           >
@@ -674,7 +674,7 @@ const POSView = () => {
                           </button>
                           <button 
                             type="button"
-                            disabled={!isAdmin && user?.permissions?.canApplyDiscounts === false}
+                            disabled={!isAdmin && !user?.permissions?.canApplyDiscounts}
                             onClick={() => setDiscountType("percent")}
                             className={`px-2 text-[10px] rounded transition-all ${discountType === 'percent' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'} disabled:opacity-50`}
                           >
@@ -688,7 +688,7 @@ const POSView = () => {
                         min="0" 
                         max={discountType === 'percent' ? 100 : subtotal}
                         value={discount} 
-                        disabled={!isAdmin && user?.permissions?.canApplyDiscounts === false}
+                        disabled={!isAdmin && !user?.permissions?.canApplyDiscounts}
                         onChange={(e) => setDiscount(e.target.value)} 
                         className="text-lg font-bold text-destructive border-destructive/20 focus:border-destructive pr-8 disabled:bg-muted/50"
                         placeholder="0"

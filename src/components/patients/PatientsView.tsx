@@ -114,6 +114,7 @@ export const PatientsView = () => {
     if (!selectedPatient) return;
 
     const recordId = await addClinicalRecord(selectedPatient.id, {
+      branchId: selectedPatient.branchId,
       prescription: {
         sphereOd: Number(examData.sphereOd),
         cylinderOd: Number(examData.cylinderOd),
